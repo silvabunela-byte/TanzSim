@@ -25,7 +25,8 @@ const pinPos = (devices, ref) => {
   const p = d && DEVICES[d.type].pins.find((q) => q.id === ref.pin);
   return d && p ? { x: d.x + p.dx, y: d.y + p.dy } : null;
 };
-
+/** Turn a status LED on for a moment (used for the TX/RX LEDs). `set` is a React state setter. */
+const pulse = (set) => { set(true); setTimeout(() => set(false), 350); };
 export default function App() {
   const [cfg, setCfg] = useState(null);
   const [devices, setDevices] = useState([]);
@@ -42,6 +43,11 @@ export default function App() {
   const [selected, setSelected] = useState(null);     // selected device id (for Delete)
   const [drag, setDrag] = useState(null);             // { id, ox, oy } while moving a device
   const [pending, setPending] = useState(null);       // { from, x, y } while dragging a new wire
+    const [powered, setPowered] = useState(false);    // board power LED: true once the simulation has started
+  const [tx, setTx] = useState(false);                // TX LED pulse (Serial output)
+  const [rx, setRx] = useState(false);                // RX LED pulse (reset / validate = "host talks to board")
+  const [resetDown, setResetDown] = useState(false);  // RESET button looks pressed
+  const [hover, setHover] = useState(null);           // pin under the mouse: { x, y, text }
   const svgRef = useRef(null);
   const latest = useRef({}); const busy = useRef(false); const sketchRef = useRef(null); const needReset = useRef(true);  // sketchRef = sketch memory returned by the server
 
@@ -59,6 +65,7 @@ export default function App() {
     setDevices(s.devices.map((d) => ({ ...d })));
     setWires(s.wires.map(([da, pa, db, pb, color], i) => ({ id: `w${i}`, a: { dev: da, pin: pa }, b: { dev: db, pin: pb }, color })));
     setCode(s.code); setSerial([]); setError(""); setRunning(false); needReset.current = true;
+        setPowered(false); sketchRef.current = null;   // a freshly loaded scenario starts "unplugged"
   };
 
   // ---- AUTOMATIC PIN MAPPING: which Arduino pin is each device's signal wire attached to? ----
@@ -86,7 +93,8 @@ export default function App() {
       const r = await api("tick", { session_id: SESSION, code, state: sim, bindings, dt: 1.0, reset: needReset.current, sketch: needReset.current ? null : sketchRef.current });
       needReset.current = false; setOnline(true); if (r.sketch) sketchRef.current = r.sketch;
       setSim(r.state); setOutputs(r.outputs || {}); setError(r.error || "");
-      if (r.serial?.length) setSerial((s) => [...s, ...r.serial].slice(-300));
+            if (r.serial?.length) { setSerial((s) => [...s, ...r.serial].slice(-300)); pulse(setTx); }  // TX blinks on Serial output
+      setPowered(true);                                                                           // a tick means the board has power
       if (r.error) setRunning(false);   // stop on a code error so the student can fix it
     } catch { setOnline(false); setRunning(false); }
     busy.current = false;
@@ -94,8 +102,17 @@ export default function App() {
 
   useEffect(() => { if (!running) return; const t = setInterval(tick, 1000); return () => clearInterval(t); }, [running, tick]);
 
-  const reset = () => { setRunning(false); setSerial([]); setError(""); needReset.current = true; const c = cfg.crops[0]; setSim({ soil_moisture: c.soil, temperature: c.temp, ambient: c.ambient, button: false }); setOutputs({}); };
-  const validate = async () => { const r = await api("validate", { code }); setError(r.ok ? "" : r.error); if (r.ok) setSerial((s) => [...s, "[OK] Code compiled without errors."]); };
+  const reset = () => { setRunning(false); setSerial([]); setError(""); needReset.current = true; sketchRef.current = null; setPowered(false); const c = cfg.crops[0]; setSim({ soil_moisture: c.soil, temperature: c.temp, ambient: c.ambient, button: false }); setOutputs({}); };
+  const validate = async () => { pulse(setRx); const r = await api("validate", { code }); setError(r.ok ? "" : r.error); if (r.ok) setSerial((s) => [...s, "[OK] Code compiled without errors."]); };
+    /** RESET button on the Arduino: restart the sketch like pressing the real button. */
+  const boardReset = () => {
+    needReset.current = true; sketchRef.current = null;   // next tick runs setup() again with fresh variables
+    setOutputs({});                                        // all digital outputs go back to LOW (pump, fan, LED off)
+    setPowered(true); pulse(setRx);
+    setSerial((s) => [...s, "[RESET] Arduino Uno restarted (setup() / initial state)"]);
+  };
+  /** Everything UnoArt needs to draw its LEDs and the RESET button. */
+  const board = { powered, l13: powered && outputs[13] === 1, tx, rx, resetDown };
   const applyCrop = (id) => { const c = cfg.crops.find((x) => x.id === id); setSim((s) => ({ ...s, soil_moisture: c.soil, temperature: c.temp, ambient: c.ambient })); setSerial((s) => [...s, `[PRESET] ${c.name}: irrigate when soil < ${c.dry_below}%`]); };
 
   // ---- CANVAS: pointer helpers ----
@@ -105,7 +122,7 @@ export default function App() {
     if (drag) setDevices((ds) => ds.map((d) => (d.id === drag.id ? { ...d, x: Math.round(p.x - drag.ox), y: Math.round(p.y - drag.oy) } : d)));  // wires redraw automatically
     if (pending) setPending({ ...pending, x: p.x, y: p.y });
   };
-  const endPointer = () => { setDrag(null); setPending(null); setSim((s) => (s.button ? { ...s, button: false } : s)); };
+  const endPointer = () => { setResetDown(false); setDrag(null); setPending(null); setSim((s) => (s.button ? { ...s, button: false } : s)); };
   const startWire = (e, dev, pin) => { e.stopPropagation(); const p = pinPos(devices, { dev, pin }); setPending({ from: { dev, pin }, x: p.x, y: p.y }); };
   const endWire = (e, dev, pin) => {
     e.stopPropagation();
@@ -130,7 +147,7 @@ export default function App() {
           {cfg.scenarios.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         <span title="Backend connection">{online ? "Backend connected" : "Backend offline"}</span>
-        <button className="primary" onClick={() => { if (!running) needReset.current = needReset.current; setRunning(!running); }}>{running ? <Pause size={16} /> : <Play size={16} />}{running ? "Pause" : "Start simulation"}</button>
+        <button className="primary" onClick={() => { if (!running) setPowered(true); setRunning(!running); }}>{running ? <Pause size={16} /> : <Play size={16} />}{running ? "Pause" : "Start simulation"}</button>
         <button onClick={tick}><StepForward size={16} />Step</button>
         <button onClick={reset}><RotateCcw size={16} />Reset</button>
       </header>
@@ -167,11 +184,19 @@ export default function App() {
                 {devices.map((d) => { const def = DEVICES[d.type];
                   return (
                     <g key={d.id} transform={`translate(${d.x},${d.y})`} style={{ cursor: "move" }}
-                       onPointerDown={(e) => { e.stopPropagation(); if (e.target.dataset.btn) { setSim((s) => ({ ...s, button: true })); return; } const p = toSvg(e); setSelected(d.id); setDrag({ id: d.id, ox: p.x - d.x, oy: p.y - d.y }); }}>
-                      <def.Art on={isOn(d)} pressed={sim.button} />
-                      {def.pins.map((p) => <circle key={p.id} className="pin" cx={p.dx} cy={p.dy} r="8" fill="transparent" onPointerDown={(e) => startWire(e, d.id, p.id)} onPointerUp={(e) => endWire(e, d.id, p.id)}><title>{`${d.id}: ${p.id}`}</title></circle>)}
+                       onPointerDown={(e) => { e.stopPropagation(); 
+                            if (e.target.dataset.reset) { setResetDown(true); boardReset(); return; }   // Arduino RESET button
+                            if (e.target.dataset.btn) { setSim((s) => ({ ...s, button: true })); return; } 
+                            const p = toSvg(e); setSelected(d.id); setDrag({ id: d.id, ox: p.x - d.x, oy: p.y - d.y }); 
+                            }}>
+                      <def.Art on={isOn(d)} pressed={sim.button} board={board} />
+                      {def.pins.map((p) => <circle key={p.id} className="pin" cx={p.dx} cy={p.dy} r=r={p.hit ?? 8} fill="transparent" onPointerEnter={() => setHover({ x: d.x + p.dx, y: d.y + p.dy, text: p.name ?? p.id })} onPointerLeave={() => setHover(null)} fill="transparent" onPointerDown={(e) => startWire(e, d.id, p.id)} onPointerUp={(e) => endWire(e, d.id, p.id)}><title>{`${d.id}: ${p.id}`}</title></circle>)}
                       {selected === d.id && <rect x="-4" y="-4" width={def.w + 8} height={def.h + 8} fill="none" stroke="#e0a400" strokeDasharray="5 3" />}
                     </g>); })}
+                {/* Pin highlight + name tooltip; also appears while dragging a wire so the student sees the target pin */}
+{hover && <g pointerEvents="none"><circle cx={hover.x} cy={hover.y} r="10" fill="none" stroke="#e0a400" strokeWidth="2.5" />
+  <rect x={hover.x - (hover.text.length * 3.4 + 6)} y={hover.y - 36} width={hover.text.length * 6.8 + 12} height="18" rx="4" fill="#1b6b3a" />
+  <text x={hover.x} y={hover.y - 23} fontSize="11" fill="#fff" textAnchor="middle">{hover.text}</text></g>}
                 {pending && (() => { const a = pinPos(devices, pending.from); return a && <line x1={a.x} y1={a.y} x2={pending.x} y2={pending.y} stroke={wireColor} strokeWidth="3" strokeDasharray="6 4" />; })()}
               </svg>
             </div>
