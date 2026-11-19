@@ -190,7 +190,7 @@ export default function App() {
                             const p = toSvg(e); setSelected(d.id); setDrag({ id: d.id, ox: p.x - d.x, oy: p.y - d.y }); 
                             }}>
                       <def.Art on={isOn(d)} pressed={sim.button} board={board} />
-                      {def.pins.map((p) => <circle key={p.id} className="pin" cx={p.dx} cy={p.dy} r=r={p.hit ?? 8} fill="transparent" onPointerEnter={() => setHover({ x: d.x + p.dx, y: d.y + p.dy, text: p.name ?? p.id })} onPointerLeave={() => setHover(null)} fill="transparent" onPointerDown={(e) => startWire(e, d.id, p.id)} onPointerUp={(e) => endWire(e, d.id, p.id)}><title>{`${d.id}: ${p.id}`}</title></circle>)}
+                     {def.pins.map((p) => <circle key={p.id} className="pin" cx={p.dx} cy={p.dy} r={p.hit ?? 8} fill="transparent" onPointerEnter={() => setHover({ x: d.x + p.dx, y: d.y + p.dy, text: p.name ?? p.id })} onPointerLeave={() => setHover(null)} onPointerDown={(e) => startWire(e, d.id, p.id)} onPointerUp={(e) => endWire(e, d.id, p.id)}><title>{`${d.id}: ${p.id}`}</title></circle>)}
                       {selected === d.id && <rect x="-4" y="-4" width={def.w + 8} height={def.h + 8} fill="none" stroke="#e0a400" strokeDasharray="5 3" />}
                     </g>); })}
                 {/* Pin highlight + name tooltip; also appears while dragging a wire so the student sees the target pin */}
