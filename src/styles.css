@@ -1,0 +1,30 @@
+/* styles.css - theme tokens come from backend/config.py (applyTheme in App.jsx). */
+:root { --green:#1b6b3a; --green-soft:#e6f2ea; --gold:#e0a400; --ink:#16241c; --line:#cfe0d5; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: "Trebuchet MS", "Segoe UI", sans-serif; color:var(--ink); background:#fff; }
+header { display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:10px 16px; background:var(--green); color:#fff; border-bottom:4px solid var(--gold); }
+header h1 { font-size:20px; margin:0; } header small { opacity:.85; }
+header .sp { flex:1; }
+button, select { font:inherit; border:1px solid var(--line); border-radius:6px; padding:6px 10px; background:#fff; color:var(--ink); cursor:pointer; display:inline-flex; gap:6px; align-items:center; }
+button.primary { background:var(--gold); border-color:var(--gold); font-weight:700; }
+button:focus-visible, select:focus-visible, textarea:focus-visible { outline:3px solid var(--gold); outline-offset:1px; }
+main { display:grid; grid-template-columns: minmax(320px, 4fr) 6fr; gap:12px; padding:12px; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+section { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff; }
+section > h2 { margin:0; padding:8px 12px; font-size:14px; background:var(--green-soft); border-bottom:1px solid var(--line); display:flex; gap:8px; align-items:center; }
+h2 .sp { flex:1; }
+textarea.code { width:100%; height:340px; border:0; padding:10px; font:13px/1.5 Consolas, "Courier New", monospace; background:#fbfdfb; color:var(--ink); resize:vertical; }
+.err { color:#9b1c1c; padding:6px 12px; font-size:13px; background:#fdecec; }
+.serial { height:170px; overflow:auto; padding:8px 12px; margin:0; background:#102418; color:#b7f3c9; font:12px/1.4 Consolas, monospace; }
+.stage { background: radial-gradient(circle, #dfe9e2 1px, transparent 1px) 0 0/20px 20px, #fff; }
+.stage svg { width:100%; height:560px; display:block; touch-action:none; }
+.toolbar { position:relative; display:flex; gap:8px; padding:8px 12px; flex-wrap:wrap; align-items:center; }
+.menu { position:absolute; top:44px; left:12px; z-index:5; background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px; display:grid; gap:4px; box-shadow:0 4px 14px #0002; }
+.controls { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:10px; padding:10px 12px; }
+.controls label { display:grid; gap:2px; font-size:13px; }
+.controls input[type=range] { accent-color: var(--green); }
+.wire { fill:none; stroke-width:3; stroke-linecap:round; cursor:pointer; } .wire:hover { stroke-width:5; }
+.pin { cursor:crosshair; } .pin:hover { fill:var(--gold); }
+.spin { animation: spin 0.6s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation:none; } }
+.map { font:12px Consolas, monospace; padding:4px 12px 10px; color:#3b5a48; }
