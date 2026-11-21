@@ -20,7 +20,10 @@ INSTITUTION = {
     "university": "Sokoine University of Agriculture (SUA)",
     "lab": "Electronics and Precision Agriculture Lab (SUA EPAL)",
     # Colours become CSS variables in the frontend (see App.jsx -> applyTheme).
-    "theme": {"green": "#1b6b3a", "green_soft": "#e6f2ea", "gold": "#e0a400", "ink": "#16241c"},
+      # SUA brand colours sampled from the university logo (vivid green + bright yellow on white).
+    # Keys become CSS variables: green_deep -> --green-deep, gold_deep -> --gold-deep, ...
+    "theme": {"green": "#019212", "green_deep": "#01790f", "green_soft": "#e6f6e8",
+              "gold": "#f3eb32", "gold_deep": "#c9bf00", "hl": "#b07800", "ink": "#0f1d12"},
     # Programs/courses that may use the simulator. Purely informational for now;
     # a future login system could filter scenarios per program using this list.
     "programs": [
@@ -114,7 +117,7 @@ SCENARIOS = [
                     {"id": "pump", "type": "pump", "x": 520, "y": 340},
                     {"id": "led", "type": "led", "x": 640, "y": 40}],
         "wires": [("soil", "SIG", "uno", "A0", "#2e7dd7"), ("soil", "VCC", "uno", "5V", "#d62828"),
-                  ("soil", "GND", "uno", "GND", "#111111"), ("pump", "SIG", "uno", "D8", "#1b6b3a"),
+                  ("soil", "GND", "uno", "GND", "#111111"), ("pump", "SIG", "uno", "D8", "#019212"),
                   ("led", "ANODE", "uno", "D13", "#e0a400")],
     },
     {
@@ -122,7 +125,7 @@ SCENARIOS = [
         "devices": [_arduino(), {"id": "temp", "type": "temp", "x": 140, "y": 340},
                     {"id": "fan", "type": "fan", "x": 520, "y": 340},
                     {"id": "btn", "type": "button", "x": 60, "y": 60}],
-        "wires": [("temp", "SIG", "uno", "A1", "#2e7dd7"), ("fan", "SIG", "uno", "D9", "#1b6b3a"),
+        "wires": [("temp", "SIG", "uno", "A1", "#2e7dd7"), ("fan", "SIG", "uno", "D9", "#019212"),
                   ("btn", "SIG", "uno", "D2", "#e0a400")],
     },
 ]
