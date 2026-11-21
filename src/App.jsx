@@ -94,10 +94,8 @@ export default function App() {
   };
 
    // ---- AUTOMATIC PIN MAPPING (net based): follows wires AND the inside of breadboards / resistors ----
+  // ---- AUTOMATIC PIN MAPPING (net based): follows wires AND the inside of breadboards / resistors ----
   const bindings = useMemo(() => resolveBindings(devices, wires, DEVICES, pinNumber), [devices, wires]);
-    }
-    return out;
-  }, [devices, wires]);
 
   latest.current = { code, sim, bindings };
 
