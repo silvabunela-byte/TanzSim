@@ -53,3 +53,36 @@ export function nearestPin(devices, DEV, pt, maxDist, exclude) {
   }
   return best;
 }
+/**
+ * NET RESOLUTION: which Arduino pin is each device's signal pin really connected to?
+ * Two pins are "the same net" when a wire joins them OR the part joins them internally
+ * (breadboard columns/rails, a resistor's two ends - see `links` in registry.jsx).
+ * Union-find keeps this fast even with hundreds of breadboard holes.
+ *   devices : [{ id, type, x, y }]    wires : [{ a:{dev,pin}, b:{dev,pin} }]
+ *   DEV     : the DEVICES catalogue   toPin : (pinId) => Arduino pin number or null (GND/5V/...)
+ * Returns { role: pinNumber } e.g. { led: 13, soil: 14 }.
+ */
+export function resolveBindings(devices, wires, DEV, toPin) {
+  const parent = new Map();
+  const find = (k) => {
+    if (!parent.has(k)) parent.set(k, k);
+    while (parent.get(k) !== k) { parent.set(k, parent.get(parent.get(k))); k = parent.get(k); }   // path compression
+    return k;
+  };
+  const join = (a, b) => parent.set(find(a), find(b));
+  const key = (dev, pin) => `${dev}.${pin}`;
+  for (const w of wires) join(key(w.a.dev, w.a.pin), key(w.b.dev, w.b.pin));                       // 1) every wire
+  for (const d of devices) for (const g of DEV[d.type].links ?? []) for (let i = 1; i < g.length; i++) join(key(d.id, g[0]), key(d.id, g[i]));   // 2) internal links
+  const unos = devices.filter((d) => d.type === "arduino");
+  const out = {};
+  for (const d of devices) {
+    const def = DEV[d.type];
+    if (!def.role || out[def.role] !== undefined) continue;          // first device of a role wins
+    const root = find(key(d.id, def.sig));                           // the net of this device's signal pin
+    search: for (const u of unos) for (const p of DEV.arduino.pins) {
+      const n = toPin(p.id);                                         // only digital/analog pins count
+      if (n !== null && find(key(u.id, p.id)) === root) { out[def.role] = n; break search; }
+    }
+  }
+  return out;
+}
