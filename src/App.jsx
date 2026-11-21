@@ -14,7 +14,7 @@ import { DEVICES } from "./components/registry.jsx";
 import { ZoomControls, WirePopover } from "./components/CanvasTools.jsx";
 import { clamp, wireGeometry, nearestPin, resolveBindings } from "./lib/geometry.js";
 
-const WIRE_COLORS = { Red: "#d62828", Black: "#111111", Green: "#1b6b3a", Blue: "#2e7dd7", Yellow: "#e0a400", Orange: "#f08c00", White: "#f4f4f4", Purple: "#7b3fb5", Brown: "#7a4b2a" };
+const WIRE_COLORS = { Red: "#d62828", Black: "#111111", Green: "#019212", Blue: "#2e7dd7", Yellow: "#e0a400", Orange: "#f08c00", White: "#f4f4f4", Purple: "#7b3fb5", Brown: "#7a4b2a" };
 const MIN_K = 0.2, MAX_K = 5;                                                       // zoom limits
 const COARSE = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches;   // finger instead of mouse
 const SNAP_PX = COARSE ? 34 : 24;                                                   // magnet radius in SCREEN pixels
@@ -37,7 +37,7 @@ const pulse = (set) => { set(true); setTimeout(() => set(false), 350); };
 const Tip = ({ x, y, text, inv }) => (
   <g pointerEvents="none" transform={`translate(${x},${y}) scale(${inv})`}>
     <circle r="11" fill="none" stroke="#e0a400" strokeWidth="2.5" />
-    <rect x={-(text.length * 3.4 + 6)} y="-38" width={text.length * 6.8 + 12} height="18" rx="4" fill="#1b6b3a" />
+    <rect x={-(text.length * 3.4 + 6)} y="-38" width={text.length * 6.8 + 12} height="18" rx="4" fill="#01790f" />
     <text y="-25" fontSize="11" fill="#fff" textAnchor="middle">{text}</text>
   </g>
 );
@@ -54,7 +54,7 @@ export default function App() {
   const [running, setRunning] = useState(false);
   const [online, setOnline] = useState(false);
   const [menu, setMenu] = useState(false);
-  const [wireColor, setWireColor] = useState("#1b6b3a");
+  const [wireColor, setWireColor] = useState("#019212");
   const [selected, setSelected] = useState(null);     // selected device id (for Delete)
   const [drag, setDrag] = useState(null);             // { id, ox, oy } while moving a device
   const [pending, setPending] = useState(null);       // { from, x, y } while dragging a NEW wire
@@ -80,7 +80,7 @@ export default function App() {
     api("config").then((c) => {
       setCfg(c); setOnline(true);
       const t = c.institution.theme, r = document.documentElement.style;  // applyTheme
-      r.setProperty("--green", t.green); r.setProperty("--green-soft", t.green_soft); r.setProperty("--gold", t.gold); r.setProperty("--ink", t.ink);
+      Object.entries(t).forEach(([k, v]) => r.setProperty("--" + k.replace(/_/g, "-"), v));   // theme keys -> CSS variables (green_deep -> --green-deep)
       loadScenario(c.scenarios[0]);
     }).catch(() => setOnline(false));
   }, []);
@@ -259,7 +259,7 @@ export default function App() {
   return (
     <>
       <header>
-        <h1>{inst.name}</h1><small>{inst.lab}</small>
+        <h1>{inst.name}</h1><small>{inst.lab}</small><img className="logo" src="/sua-logo.png" alt="SUA logo" onError={(e) => (e.currentTarget.style.display = "none")} /><h1>{inst.name}</h1><small>{inst.lab}</small>
         <span className="sp" />
         <select aria-label="Scenario" onChange={(e) => loadScenario(cfg.scenarios.find((s) => s.id === e.target.value))}>
           {cfg.scenarios.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
