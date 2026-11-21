@@ -12,7 +12,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { Play, Pause, StepForward, RotateCcw, Plus, Trash2, Eraser, CheckCircle2 } from "lucide-react";
 import { DEVICES } from "./components/registry.jsx";
 import { ZoomControls, WirePopover } from "./components/CanvasTools.jsx";
-import { clamp, wireGeometry, nearestPin } from "./lib/geometry.js";
+import { clamp, wireGeometry, nearestPin, resolveBindings } from "./lib/geometry.js";
 
 const WIRE_COLORS = { Red: "#d62828", Black: "#111111", Green: "#1b6b3a", Blue: "#2e7dd7", Yellow: "#e0a400", Orange: "#f08c00", White: "#f4f4f4", Purple: "#7b3fb5", Brown: "#7a4b2a" };
 const MIN_K = 0.2, MAX_K = 5;                                                       // zoom limits
@@ -93,17 +93,8 @@ export default function App() {
     setSelWire(null); setSelected(null); needFit.current = true;   // re-centre the view for the new circuit
   };
 
-  // ---- AUTOMATIC PIN MAPPING: which Arduino pin is each device's signal wire attached to? ----
-  const bindings = useMemo(() => {
-    const out = {};
-    for (const d of devices) {
-      const def = DEVICES[d.type];
-      if (!def.role || out[def.role] !== undefined) continue;   // first device of a role wins
-      const w = wires.find((w) => (w.a.dev === d.id && w.a.pin === def.sig) || (w.b.dev === d.id && w.b.pin === def.sig));
-      if (!w) continue;
-      const other = w.a.dev === d.id && w.a.pin === def.sig ? w.b : w.a;
-      const od = devices.find((x) => x.id === other.dev);
-      if (od?.type === "arduino" && pinNumber(other.pin) !== null) out[def.role] = pinNumber(other.pin);
+   // ---- AUTOMATIC PIN MAPPING (net based): follows wires AND the inside of breadboards / resistors ----
+  const bindings = useMemo(() => resolveBindings(devices, wires, DEVICES, pinNumber), [devices, wires]);
     }
     return out;
   }, [devices, wires]);
@@ -159,6 +150,15 @@ export default function App() {
     setView({ k, x: pad + (size.w - pad - padR - (x1 - x0) * k) / 2 - x0 * k, y: (size.h - (y1 - y0) * k) / 2 - y0 * k });
   }, [devices, size]);
   useEffect(() => { if (needFit.current && size.w) { needFit.current = false; fit(); } }, [size, devices, fit]);
+
+  /** Double-tap a part = zoom so that the part fills the canvas (easy way to reach tiny pins on a phone). */
+  const lastTap = useRef({ id: null, t: 0, x: 0, y: 0 });
+  const focusDevice = (d) => {
+    const df = DEVICES[d.type], pad = 40, padR = 72;            // padR keeps the zoom buttons clear
+    const x0 = d.x + (df.ox ?? 0) - pad, y0 = d.y - pad, w = df.w - (df.ox ?? 0) + 2 * pad, h = df.h + 2 * pad;
+    const k = clamp(Math.min((size.w - padR) / w, size.h / h), MIN_K, MAX_K);
+    setView({ k, x: (size.w - padR - w * k) / 2 - x0 * k, y: (size.h - h * k) / 2 - y0 * k });
+  };
 
   /** Zoom by factor f keeping the screen point (cx, cy) fixed. */
   const zoomAt = (cx, cy, f) => setView((v) => { const k = clamp(v.k * f, MIN_K, MAX_K), r = k / v.k; return { k, x: cx - (cx - v.x) * r, y: cy - (cy - v.y) * r }; });
@@ -291,7 +291,7 @@ export default function App() {
               {menu && <div className="menu">{Object.entries(DEVICES).filter(([k]) => k !== "arduino").map(([k, d]) => <button key={k} onClick={() => addDevice(k)}>{d.label}</button>)}</div>}
               <label>New wire colour <select value={wireColor} onChange={(e) => setWireColor(e.target.value)}>{Object.entries(WIRE_COLORS).map(([n, c]) => <option key={n} value={c}>{n}</option>)}</select></label>
               <button onClick={removeSelected} disabled={!selected}><Trash2 size={14} />Delete selected</button>
-              <small>Drag from a pin to another pin to wire (it snaps). Tap a wire to edit it. Pinch / wheel = zoom, drag empty space = pan.</small>
+              <small>Drag from a pin to another pin to wire (it snaps). Tap a wire to edit it. Pinch / wheel = zoom, drag empty space = pan, double-tap a part = zoom to it..</small>
             </div>
             <div className="stage" ref={stageRef}>
               <svg ref={svgRef} onPointerDownCapture={onDownCapture} onPointerDown={onBgDown} onPointerMove={onMove}
@@ -301,13 +301,16 @@ export default function App() {
                 <rect width="100%" height="100%" fill="url(#grid)" />
                 <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
                   {/* 1) DEVICES */}
-                  {devices.map((d) => { const def = DEVICES[d.type];
+                  {[...devices].sort((p, q) => (DEVICES[p.type].layer ?? 1) - (DEVICES[q.type].layer ?? 1)).map((d) => { const def = DEVICES[d.type];   // breadboard (layer 0) is drawn first = behind
                     return (
                       <g key={d.id} transform={`translate(${d.x},${d.y})`} style={{ cursor: "move" }}
                          onPointerDown={(e) => { e.stopPropagation();
                            if (ptrs.current.size > 1) return;
                            if (e.target.dataset.reset) { setResetDown(true); boardReset(); return; }   // Arduino RESET button
                            if (e.target.dataset.btn) { setSim((s) => ({ ...s, button: true })); return; }
+                           const now = Date.now(), lt = lastTap.current;   // double-tap detection (same part, < 350 ms, finger moved < 14 px)
+                           if (lt.id === d.id && now - lt.t < 350 && Math.hypot(e.clientX - lt.x, e.clientY - lt.y) < 14) { lastTap.current = { id: null, t: 0, x: 0, y: 0 }; focusDevice(d); return; }
+                           lastTap.current = { id: d.id, t: now, x: e.clientX, y: e.clientY };
                            const p = toWorld(e); setSelected(d.id); setSelWire(null); setDrag({ id: d.id, ox: p.x - d.x, oy: p.y - d.y });
                          }}>
                         <def.Art on={isOn(d)} pressed={sim.button} board={board} />
