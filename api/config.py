@@ -110,8 +110,8 @@ def _arduino(x=300, y=40):
 SCENARIOS = [
     {
         "id": "drip", "name": "Smart Drip Irrigation", "code": _drip_code(),
-        "devices": [_arduino(), {"id": "soil", "type": "soil", "x": 120, "y": 300},
-                    {"id": "pump", "type": "pump", "x": 520, "y": 300},
+        "devices": [_arduino(), {"id": "soil", "type": "soil", "x": 120, "y": 340},
+                    {"id": "pump", "type": "pump", "x": 520, "y": 340},
                     {"id": "led", "type": "led", "x": 640, "y": 40}],
         "wires": [("soil", "SIG", "uno", "A0", "#2e7dd7"), ("soil", "VCC", "uno", "5V", "#d62828"),
                   ("soil", "GND", "uno", "GND", "#111111"), ("pump", "SIG", "uno", "D8", "#1b6b3a"),
@@ -119,8 +119,8 @@ SCENARIOS = [
     },
     {
         "id": "greenhouse", "name": "Greenhouse Climate Control", "code": _greenhouse_code(),
-        "devices": [_arduino(), {"id": "temp", "type": "temp", "x": 140, "y": 300},
-                    {"id": "fan", "type": "fan", "x": 520, "y": 300},
+        "devices": [_arduino(), {"id": "temp", "type": "temp", "x": 140, "y": 340},
+                    {"id": "fan", "type": "fan", "x": 520, "y": 340},
                     {"id": "btn", "type": "button", "x": 60, "y": 60}],
         "wires": [("temp", "SIG", "uno", "A1", "#2e7dd7"), ("fan", "SIG", "uno", "D9", "#1b6b3a"),
                   ("btn", "SIG", "uno", "D2", "#e0a400")],
