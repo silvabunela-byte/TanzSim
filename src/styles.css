@@ -1,43 +1,66 @@
-/* styles.css - theme tokens come from backend/config.py (applyTheme in App.jsx). */
-:root { --green:#1b6b3a; --green-soft:#e6f2ea; --gold:#e0a400; --ink:#16241c; --line:#cfe0d5; }
+/* styles.css - SUA brand theme for TanzSim.
+ * Colours are sampled from the official SUA logo: vivid green #019212 + bright yellow #f3eb32 on white.
+ * The same values live in api/config.py (INSTITUTION["theme"]); App.jsx copies them into these CSS
+ * variables when the page loads, so a department can re-brand the whole site from config.py alone.
+ * The defaults below are used until the config arrives.
+ *   --green       logo green: accents, section bars, sliders
+ *   --green-deep  darker green: header + text on white (white text on it has 5.6:1 contrast)
+ *   --green-soft  very light green tint: panel title bars, hover
+ *   --gold        logo yellow: primary buttons, header underline
+ *   --gold-deep   darker yellow: borders of yellow elements (yellow alone is invisible on white)
+ *   --hl          amber used for highlights drawn on the light circuit canvas
+ */
+:root { --green:#019212; --green-deep:#01790f; --green-soft:#e6f6e8; --gold:#f3eb32; --gold-deep:#c9bf00; --hl:#b07800; --ink:#0f1d12; --line:#c9e3cd; }
 * { box-sizing: border-box; }
 body { margin:0; font-family: "Trebuchet MS", "Segoe UI", sans-serif; color:var(--ink); background:#fff; }
-header { display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:10px 16px; background:var(--green); color:#fff; border-bottom:4px solid var(--gold); }
-header h1 { font-size:20px; margin:0; } header small { opacity:.85; }
+
+/* ---- Header: SUA green with the yellow underline of the logo ---- */
+header { display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:10px 16px; background:var(--green-deep); color:#fff; border-bottom:5px solid var(--gold); }
+header h1 { font-size:20px; margin:0; letter-spacing:.3px; } header small { opacity:.92; }
 header .sp { flex:1; }
+header .logo { height:46px; width:auto; background:#fff; border-radius:10px; padding:3px 5px; }   /* optional SUA logo (public/sua-logo.png) */
+header :focus-visible { outline-color:#fff; }
+
 button, select { font:inherit; border:1px solid var(--line); border-radius:6px; padding:6px 10px; background:#fff; color:var(--ink); cursor:pointer; display:inline-flex; gap:6px; align-items:center; }
-button.primary { background:var(--gold); border-color:var(--gold); font-weight:700; }
-button:focus-visible, select:focus-visible, textarea:focus-visible { outline:3px solid var(--gold); outline-offset:1px; }
-main { display:grid; grid-template-columns: minmax(320px, 4fr) 6fr; gap:12px; padding:12px; }
+button:hover:not(:disabled), select:hover { background:var(--green-soft); border-color:var(--green); }
+button:disabled { opacity:.5; cursor:not-allowed; }
+button.primary { background:var(--gold); border-color:var(--gold-deep); font-weight:700; color:var(--ink); }
+button.primary:hover:not(:disabled) { background:#fff36a; border-color:var(--gold-deep); }
+button:focus-visible, select:focus-visible, textarea:focus-visible { outline:3px solid var(--green-deep); outline-offset:2px; }
+
+main { display:grid; grid-template-columns: minmax(320px, 4fr) 6fr; gap:12px; padding:12px; background:#f6fbf6; }
 @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
-section { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff; }
-section > h2 { margin:0; padding:8px 12px; font-size:14px; background:var(--green-soft); border-bottom:1px solid var(--line); display:flex; gap:8px; align-items:center; }
+section { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff; box-shadow:0 1px 3px #01790f14; }
+section > h2 { margin:0; padding:8px 12px; font-size:14px; color:var(--green-deep); background:var(--green-soft); border-bottom:1px solid var(--line); border-left:5px solid var(--green); display:flex; gap:8px; align-items:center; }
 h2 .sp { flex:1; }
 textarea.code { width:100%; height:340px; border:0; padding:10px; font:13px/1.5 Consolas, "Courier New", monospace; background:#fbfdfb; color:var(--ink); resize:vertical; }
 .err { color:#9b1c1c; padding:6px 12px; font-size:13px; background:#fdecec; }
-.serial { height:170px; overflow:auto; padding:8px 12px; margin:0; background:#102418; color:#b7f3c9; font:12px/1.4 Consolas, monospace; }
-.stage { position:relative; height:min(72vh,640px); min-height:380px; overflow:hidden; background:#f3f8f4; }
+.serial { height:170px; overflow:auto; padding:8px 12px; margin:0; background:#0b2410; color:#b9f5c4; font:12px/1.4 Consolas, monospace; }
+.stage { position:relative; height:min(72vh,640px); min-height:380px; overflow:hidden; background:#f4faf4; }
 .stage svg { width:100%; height:100%; display:block; touch-action:none; user-select:none; -webkit-user-select:none; }
 .toolbar { position:relative; display:flex; gap:8px; padding:8px 12px; flex-wrap:wrap; align-items:center; }
 .menu { position:absolute; top:44px; left:12px; z-index:5; background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px; display:grid; gap:4px; box-shadow:0 4px 14px #0002; }
 .controls { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:10px; padding:10px 12px; }
 .controls label { display:grid; gap:2px; font-size:13px; }
 .controls input[type=range] { accent-color: var(--green); }
+
+/* ---- Wires and their edit handles (drawn on the light canvas, so they use the stronger --hl amber) ---- */
 .wire-hit { fill:none; stroke:transparent; pointer-events:stroke; cursor:pointer; }   /* wide invisible target = easy to tap */
 .wire-core { fill:none; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; }
-.h-end { fill:#fff; stroke:var(--gold); stroke-width:3px; vector-effect:non-scaling-stroke; cursor:grab; }
-.h-pt { fill:var(--gold); stroke:#fff; stroke-width:2px; vector-effect:non-scaling-stroke; cursor:grab; }
-.h-mid { cursor:copy; } .h-mid circle { fill:rgba(255,255,255,.8); stroke:var(--green); stroke-width:2px; vector-effect:non-scaling-stroke; } .h-mid path { stroke:var(--green); stroke-width:2px; fill:none; vector-effect:non-scaling-stroke; }
+.h-end { fill:#fff; stroke:var(--hl); stroke-width:3px; vector-effect:non-scaling-stroke; cursor:grab; }
+.h-pt { fill:var(--gold); stroke:var(--hl); stroke-width:2px; vector-effect:non-scaling-stroke; cursor:grab; }
+.h-mid { cursor:copy; } .h-mid circle { fill:rgba(255,255,255,.85); stroke:var(--green-deep); stroke-width:2px; vector-effect:non-scaling-stroke; } .h-mid path { stroke:var(--green-deep); stroke-width:2px; fill:none; vector-effect:non-scaling-stroke; }
+
 .zoom { position:absolute; right:10px; top:10px; z-index:4; display:grid; gap:6px; justify-items:center; }
 .zoom button { width:44px; height:44px; padding:0; justify-content:center; box-shadow:0 2px 8px #0003; }
 .zoom .zl { font:600 11px Consolas, monospace; background:#fff; border:1px solid var(--line); border-radius:10px; padding:2px 6px; }
-.wire-pop { position:absolute; z-index:6; background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px; display:grid; gap:8px; box-shadow:0 8px 24px #0004; }
-.wire-pop .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; } .wire-pop small { color:#3b5a48; font-size:11px; }
+.wire-pop { position:absolute; z-index:6; background:#fff; border:1px solid var(--line); border-top:4px solid var(--green); border-radius:12px; padding:10px; display:grid; gap:8px; box-shadow:0 8px 24px #0004; }
+.wire-pop .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; } .wire-pop small { color:#2f5a38; font-size:11px; }
 .wire-pop button.icon { padding:4px; } .wire-pop button.danger { background:#fdecec; border-color:#e9b3b3; color:#9b1c1c; font-weight:700; }
-.swatch { width:34px; height:34px; padding:0; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px #0005; } .swatch.on { box-shadow:0 0 0 3px var(--gold); }
-.pin { cursor:crosshair; } .pin:hover { fill:rgba(224,164,0,.45); stroke:var(--gold); stroke-width:2; }
+.swatch { width:34px; height:34px; padding:0; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px #0005; } .swatch.on { box-shadow:0 0 0 3px var(--green-deep); }
+.pin { cursor:crosshair; } .pin:hover { fill:rgba(1,146,18,.28); stroke:var(--green-deep); stroke-width:2; }
 .spin { animation: spin 0.6s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation:none; } }
-.map { font:12px Consolas, monospace; padding:4px 12px 10px; color:#3b5a48; }
+.map { font:12px Consolas, monospace; padding:4px 12px 10px; color:#2f5a38; }
 @media (pointer: coarse) { button, select { min-height:44px; } .toolbar small { flex-basis:100%; } }   /* finger-sized controls */
 @media (max-width: 900px) { .col-circuit { order:-1; } }   /* on phones the circuit comes before the code editor */
