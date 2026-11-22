@@ -14,7 +14,6 @@ import { DEVICES } from "./components/registry.jsx";
 import { ZoomControls, WirePopover } from "./components/CanvasTools.jsx";
 import { clamp, wireGeometry, nearestPin, resolveBindings } from "./lib/geometry.js";
 import { serializeProject, parseProject, downloadProject, saveLocal, loadLocal } from "./lib/project.js";
-import { Play, Pause, StepForward, RotateCcw, Plus, Trash2, Eraser, CheckCircle2, FilePlus } from "lucide-react";
 
 const WIRE_COLORS = { Red: "#d62828", Black: "#111111", Green: "#019212", Blue: "#2e7dd7", Yellow: "#e0a400", Orange: "#f08c00", White: "#f4f4f4", Purple: "#7b3fb5", Brown: "#7a4b2a" };
 const MIN_K = 0.2, MAX_K = 5;                                                       // zoom limits
@@ -317,15 +316,15 @@ export default function App() {
 
   return (
     <>
-      <header>
-              <img className="logo" src="/sua-logo.png" alt="SUA logo" onError={(e) => (e.currentTarget.style.display = "none")} /><h1>{inst.name}</h1><small>{inst.lab}</small>
+           <header>
+        <img className="logo" src="/sua-logo.png" alt="SUA logo" onError={(e) => (e.currentTarget.style.display = "none")} /><h1>{inst.name}</h1><small>{inst.lab}</small>
         <span className="sp" />
+        <button onClick={newProject} title="Start from scratch"><FilePlus size={16} />New project</button>
         <button onClick={() => fileRef.current?.click()} title="Open a saved project (.json)"><FolderOpen size={16} />Open</button>
         <button onClick={saveFile} title="Download this project as a file"><Download size={16} />Save</button>
         <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={onOpenFile} />
         <select aria-label="Scenario" value={scenarioId}
           onChange={(e) => { if (scenarioId === "" && !window.confirm("Replace your project with this example?\nTip: press Save first to keep your work.")) return; loadScenario(cfg.scenarios.find((s) => s.id === e.target.value)); }}>
-        <select aria-label="Scenario" value={scenarioId} onChange={(e) => loadScenario(cfg.scenarios.find((s) => s.id === e.target.value))}>
           <option value="" disabled hidden>My project</option>
           {cfg.scenarios.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
