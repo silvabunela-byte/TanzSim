@@ -13,11 +13,23 @@ import { Play, Pause, StepForward, RotateCcw, Plus, Trash2, Eraser, CheckCircle2
 import { DEVICES } from "./components/registry.jsx";
 import { ZoomControls, WirePopover } from "./components/CanvasTools.jsx";
 import { clamp, wireGeometry, nearestPin, resolveBindings } from "./lib/geometry.js";
+import { Play, Pause, StepForward, RotateCcw, Plus, Trash2, Eraser, CheckCircle2, FilePlus } from "lucide-react";
 
 const WIRE_COLORS = { Red: "#d62828", Black: "#111111", Green: "#019212", Blue: "#2e7dd7", Yellow: "#e0a400", Orange: "#f08c00", White: "#f4f4f4", Purple: "#7b3fb5", Brown: "#7a4b2a" };
 const MIN_K = 0.2, MAX_K = 5;                                                       // zoom limits
 const COARSE = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches;   // finger instead of mouse
 const SNAP_PX = COARSE ? 34 : 24;                                                   // magnet radius in SCREEN pixels
+const BLANK_CODE = `// New project
+// 1. Press "Add" to place parts (LED, sensor, pump...).  2. Drag from pin to pin to wire them.
+// 3. Write your code here, then press "Start simulation".
+
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+}
+`;
 const SESSION = Math.random().toString(36).slice(2);  // one sketch memory per browser tab
 const api = (path, body) => fetch(`/api/${path}`, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined).then((r) => r.json());
 
@@ -69,6 +81,7 @@ export default function App() {
   const [selWire, setSelWire] = useState(null);               // { id, sx, sy } wire being edited + where it was tapped
   const [hdrag, setHdrag] = useState(null);                   // wire handle being dragged: {type:"end",id,end,x,y} | {type:"pt",id,index}
   const [snap, setSnap] = useState(null);                     // pin the dragged wire end would snap to
+    const [scenarioId, setScenarioId] = useState("");           // which ready-made scenario is loaded ("" = your own project)
   const svgRef = useRef(null); const stageRef = useRef(null);
   const viewRef = useRef(view); viewRef.current = view;       // always-fresh copy for event handlers
   const ptrs = useRef(new Map());                             // active pointers (1 = pan/drag, 2 = pinch zoom)
@@ -85,7 +98,8 @@ export default function App() {
     }).catch(() => setOnline(false));
   }, []);
 
-  const loadScenario = (s) => {
+   const loadScenario = (s) => {
+    setScenarioId(s.id); setOutputs({});   // outputs of the previous circuit must not leak into the new one
     setDevices(s.devices.map((d) => ({ ...d })));
     setWires(s.wires.map(([da, pa, db, pb, color], i) => ({ id: `w${i}`, a: { dev: da, pin: pa }, b: { dev: db, pin: pb }, color, pts: [] })));
     setCode(s.code); setSerial([]); setError(""); setRunning(false); needReset.current = true;
@@ -93,7 +107,16 @@ export default function App() {
     setSelWire(null); setSelected(null); needFit.current = true;   // re-centre the view for the new circuit
   };
 
-   // ---- AUTOMATIC PIN MAPPING (net based): follows wires AND the inside of breadboards / resistors ----
+  /** NEW PROJECT: empty canvas with only the Arduino, no wires, a minimal sketch. Student builds everything from scratch. */
+  const newProject = () => {
+    if (!window.confirm("Start a new project?\nThe current circuit and code will be cleared.")) return;
+    const c = cfg.crops[0];
+    setScenarioId(""); setOutputs({}); setSim({ soil_moisture: c.soil, temperature: c.temp, ambient: c.ambient, button: false });
+    setDevices([{ id: "uno", type: "arduino", x: 120, y: 40 }]); setWires([]);
+    setCode(BLANK_CODE); setSerial([]); setError(""); setRunning(false); needReset.current = true;
+    setPowered(false); sketchRef.current = null; setSelWire(null); setSelected(null); setMenu(false); needFit.current = true;
+  };
+
   // ---- AUTOMATIC PIN MAPPING (net based): follows wires AND the inside of breadboards / resistors ----
   const bindings = useMemo(() => resolveBindings(devices, wires, DEVICES, pinNumber), [devices, wires]);
 
@@ -257,9 +280,11 @@ export default function App() {
   return (
     <>
       <header>
-        <img className="logo" src="/sua-logo.png" alt="SUA logo" onError={(e) => (e.currentTarget.style.display = "none")} /><h1>{inst.name}</h1><small>{inst.lab}</small>
+              <img className="logo" src="/sua-logo.png" alt="SUA logo" onError={(e) => (e.currentTarget.style.display = "none")} /><h1>{inst.name}</h1><small>{inst.lab}</small>
         <span className="sp" />
-        <select aria-label="Scenario" onChange={(e) => loadScenario(cfg.scenarios.find((s) => s.id === e.target.value))}>
+        <button onClick={newProject} title="Start from scratch"><FilePlus size={16} />New project</button>
+        <select aria-label="Scenario" value={scenarioId} onChange={(e) => loadScenario(cfg.scenarios.find((s) => s.id === e.target.value))}>
+          <option value="" disabled hidden>My project</option>
           {cfg.scenarios.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         <span title="Backend connection">{online ? "Backend connected" : "Backend offline"}</span>
