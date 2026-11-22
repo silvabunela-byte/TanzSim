@@ -11,7 +11,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Play, Pause, StepForward, RotateCcw, Plus, Trash2, Eraser, CheckCircle2, FilePlus, FolderOpen, Download } from "lucide-react";
 import { DEVICES } from "./components/registry.jsx";
-import { ZoomControls, WirePopover } from "./components/CanvasTools.jsx";
+import { ZoomControls, WirePopover, ScrollRail, JumpBar } from "./components/CanvasTools.jsx";
 import { clamp, wireGeometry, nearestPin, resolveBindings } from "./lib/geometry.js";
 import { serializeProject, parseProject, downloadProject, saveLocal, loadLocal } from "./lib/project.js";
 
@@ -88,6 +88,7 @@ export default function App() {
   const viewRef = useRef(view); viewRef.current = view;       // always-fresh copy for event handlers
   const ptrs = useRef(new Map());                             // active pointers (1 = pan/drag, 2 = pinch zoom)
   const pan = useRef(null); const gesture = useRef(null); const needFit = useRef(true);
+    const scrollDrag = useRef(null);                            // finger on empty canvas = scrolling the PAGE (touch only)
   const latest = useRef({}); const busy = useRef(false); const sketchRef = useRef(null); const needReset = useRef(true);  // sketchRef = sketch memory returned by the server
 
   // ---- load institution config (branding, crops, scenarios) once ----
@@ -256,17 +257,23 @@ export default function App() {
   /** Runs for EVERY pointer (capture phase), even when a child calls stopPropagation. */
   const onDownCapture = (e) => {
     ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (ptrs.current.size === 2) { setDrag(null); setPending(null); setHdrag(null); setSnap(null); pan.current = null; startPinch(); }   // second finger = pinch, cancel anything else
+    if (ptrs.current.size === 2) { setDrag(null); setPending(null); setHdrag(null); setSnap(null); pan.current = null; scrollDrag.current = null; startPinch(); }   // second finger = pinch, cancel anything else
   };
   /** Reached only when the touch started on empty canvas (children stop propagation): start panning. */
-  const onBgDown = (e) => {
+   const onBgDown = (e) => {
     if (ptrs.current.size > 1) return;
     setSelected(null); setSelWire(null);
-    pan.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, vx: viewRef.current.x, vy: viewRef.current.y };
+    if (e.pointerType === "touch") {   // finger on empty canvas = scroll the PAGE; two fingers move/zoom the circuit
+      pan.current = null;
+      scrollDrag.current = { id: e.pointerId, sy: e.clientY, y0: window.scrollY };   // remember where the finger and the page started
+      return;
+    }
+    pan.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, vx: viewRef.current.x, vy: viewRef.current.y };   // mouse: drag = pan the circuit
   };
   const onMove = (e) => {
     if (ptrs.current.has(e.pointerId)) ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (ptrs.current.size >= 2) { pinchMove(); return; }
+       if (scrollDrag.current?.id === e.pointerId) { window.scrollTo(0, scrollDrag.current.y0 - (e.clientY - scrollDrag.current.sy)); return; }   // follow the finger
     if (pan.current && pan.current.id === e.pointerId) { const s = pan.current; setView((v) => ({ ...v, x: s.vx + e.clientX - s.sx, y: s.vy + e.clientY - s.sy })); return; }
     const p = toWorld(e), reach = SNAP_PX / viewRef.current.k;           // magnet radius in world units
     if (drag) setDevices((ds) => ds.map((d) => (d.id === drag.id ? { ...d, x: Math.round(p.x - drag.ox), y: Math.round(p.y - drag.oy) } : d)));  // wires follow because they store pin IDs
@@ -282,6 +289,7 @@ export default function App() {
   const finish = (e, commit) => {
     ptrs.current.delete(e.pointerId); if (ptrs.current.size < 2) gesture.current = null;
     if (pan.current?.id === e.pointerId) pan.current = null;
+        if (scrollDrag.current?.id === e.pointerId) scrollDrag.current = null;
     if (commit && pending && snap) setWires((ws) => [...ws, { id: `w${Date.now()}`, a: pending.from, b: { dev: snap.dev, pin: snap.pin }, color: wireColor, pts: [] }]);   // snapped = connected
     if (commit && hdrag?.type === "end" && snap) setWires((ws) => ws.map((w) => (w.id === hdrag.id ? { ...w, [hdrag.end]: { dev: snap.dev, pin: snap.pin } } : w)));  // end moved to another pin
     setPending(null); setHdrag(null); setSnap(null); setDrag(null);
@@ -317,22 +325,22 @@ export default function App() {
   return (
     <>
            <header>
-        <img className="logo" src="/sua-logo.png" alt="SUA logo" onError={(e) => (e.currentTarget.style.display = "none")} /><h1>{inst.name}</h1><small>{inst.lab}</small>
+        <img className="logo" src="/sua-logo.png" alt="SUA logo" onError={(e) => (e.currentTarget.style.display = "none")} /><h1>{inst.name}</h1><small className="lab">{inst.lab}</small>
         <span className="sp" />
-        <button onClick={newProject} title="Start from scratch"><FilePlus size={16} />New project</button>
-        <button onClick={() => fileRef.current?.click()} title="Open a saved project (.json)"><FolderOpen size={16} />Open</button>
-        <button onClick={saveFile} title="Download this project as a file"><Download size={16} />Save</button>
-        <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={onOpenFile} />
+        <button onClick={newProject} title="Start from scratch" aria-label="New project"><FilePlus size={16} /><span className="lbl">New project</span></button>
+        <button onClick={() => fileRef.current?.click()} title="Open a saved project (.json)" aria-label="Open project"><FolderOpen size={16} /><span className="lbl">Open</span></button>
+        <button onClick={saveFile} title="Download this project as a file" aria-label="Save project"><Download size={16} /><span className="lbl">Save</span></button>
+             <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={onOpenFile} />
         <select aria-label="Scenario" value={scenarioId}
           onChange={(e) => { if (scenarioId === "" && !window.confirm("Replace your project with this example?\nTip: press Save first to keep your work.")) return; loadScenario(cfg.scenarios.find((s) => s.id === e.target.value)); }}>
           <option value="" disabled hidden>My project</option>
           {cfg.scenarios.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        <span title="Backend connection">{online ? "Backend connected" : "Backend offline"}</span>
-        <button className="primary" onClick={() => { if (!running) setPowered(true); setRunning(!running); }}>{running ? <Pause size={16} /> : <Play size={16} />}{running ? "Pause" : "Start simulation"}</button>
-        <button onClick={tick}><StepForward size={16} />Step</button>
-        <button onClick={reset}><RotateCcw size={16} />Reset</button>
-      </header>
+        <span className="status" title="Backend connection"><i className={online ? "dot on" : "dot"} /><span className="lbl">{online ? "Backend connected" : "Backend offline"}</span></span>
+             <button className="primary" onClick={() => { if (!running) setPowered(true); setRunning(!running); }}>{running ? <Pause size={16} /> : <Play size={16} />}{running ? "Pause" : "Start simulation"}</button>
+        <button onClick={tick} aria-label="Step"><StepForward size={16} /><span className="lbl">Step</span></button>
+        <button onClick={reset} aria-label="Reset"><RotateCcw size={16} /><span className="lbl">Reset</span></button>
+           </header>
 
       <main>
         <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
@@ -355,7 +363,7 @@ export default function App() {
               {menu && <div className="menu">{Object.entries(DEVICES).filter(([k]) => k !== "arduino").map(([k, d]) => <button key={k} onClick={() => addDevice(k)}>{d.label}</button>)}</div>}
               <label>New wire colour <select value={wireColor} onChange={(e) => setWireColor(e.target.value)}>{Object.entries(WIRE_COLORS).map(([n, c]) => <option key={n} value={c}>{n}</option>)}</select></label>
               <button onClick={removeSelected} disabled={!selected}><Trash2 size={14} />Delete selected</button>
-              <small>Drag from a pin to another pin to wire (it snaps). Tap a wire to edit it. Pinch / wheel = zoom, drag empty space = pan, double-tap a part = zoom to it..</small>
+              <small>Drag from a pin to another pin to wire (it snaps). Tap a wire to edit it. Two fingers = move / zoom, one finger on empty space = scroll the page. Double-tap a part = zoom to it.</small>
             </div>
             <div className="stage" ref={stageRef}>
               <svg ref={svgRef} onPointerDownCapture={onDownCapture} onPointerDown={onBgDown} onPointerMove={onMove}
@@ -434,6 +442,8 @@ export default function App() {
           </section>
         </div>
       </main>
+            <ScrollRail />   {/* big scroll handle on the right edge (phones) */}
+      <JumpBar />      {/* bottom bar: jump to Circuit / Farm / Code / Serial (phones) */}
     </>
   );
 }
