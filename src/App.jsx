@@ -257,7 +257,7 @@ export default function App() {
   return (
     <>
       <header>
-        <h1>{inst.name}</h1><small>{inst.lab}</small><img className="logo" src="/sua-logo.png" alt="SUA logo" onError={(e) => (e.currentTarget.style.display = "none")} /><h1>{inst.name}</h1><small>{inst.lab}</small>
+        <img className="logo" src="/sua-logo.png" alt="SUA logo" onError={(e) => (e.currentTarget.style.display = "none")} /><h1>{inst.name}</h1><small>{inst.lab}</small>
         <span className="sp" />
         <select aria-label="Scenario" onChange={(e) => loadScenario(cfg.scenarios.find((s) => s.id === e.target.value))}>
           {cfg.scenarios.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
