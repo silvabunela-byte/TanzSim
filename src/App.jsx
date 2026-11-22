@@ -9,10 +9,11 @@
  * loop() and the physics, then returns the new `sim`. No student code runs in the browser.
  */
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { Play, Pause, StepForward, RotateCcw, Plus, Trash2, Eraser, CheckCircle2 } from "lucide-react";
+import { Play, Pause, StepForward, RotateCcw, Plus, Trash2, Eraser, CheckCircle2, FilePlus, FolderOpen, Download } from "lucide-react";
 import { DEVICES } from "./components/registry.jsx";
 import { ZoomControls, WirePopover } from "./components/CanvasTools.jsx";
 import { clamp, wireGeometry, nearestPin, resolveBindings } from "./lib/geometry.js";
+import { serializeProject, parseProject, downloadProject, saveLocal, loadLocal } from "./lib/project.js";
 import { Play, Pause, StepForward, RotateCcw, Plus, Trash2, Eraser, CheckCircle2, FilePlus } from "lucide-react";
 
 const WIRE_COLORS = { Red: "#d62828", Black: "#111111", Green: "#019212", Blue: "#2e7dd7", Yellow: "#e0a400", Orange: "#f08c00", White: "#f4f4f4", Purple: "#7b3fb5", Brown: "#7a4b2a" };
@@ -81,7 +82,9 @@ export default function App() {
   const [selWire, setSelWire] = useState(null);               // { id, sx, sy } wire being edited + where it was tapped
   const [hdrag, setHdrag] = useState(null);                   // wire handle being dragged: {type:"end",id,end,x,y} | {type:"pt",id,index}
   const [snap, setSnap] = useState(null);                     // pin the dragged wire end would snap to
-    const [scenarioId, setScenarioId] = useState("");           // which ready-made scenario is loaded ("" = your own project)
+  const [projectName, setProjectName] = useState("my-project");   // used for the saved file name
+  const fileRef = useRef(null);                                    // hidden <input type=file> behind the Open button 
+  const [scenarioId, setScenarioId] = useState("");           // which ready-made scenario is loaded ("" = your own project)
   const svgRef = useRef(null); const stageRef = useRef(null);
   const viewRef = useRef(view); viewRef.current = view;       // always-fresh copy for event handlers
   const ptrs = useRef(new Map());                             // active pointers (1 = pan/drag, 2 = pinch zoom)
@@ -94,7 +97,8 @@ export default function App() {
       setCfg(c); setOnline(true);
       const t = c.institution.theme, r = document.documentElement.style;  // applyTheme
       Object.entries(t).forEach(([k, v]) => r.setProperty("--" + k.replace(/_/g, "-"), v));   // theme keys -> CSS variables (green_deep -> --green-deep)
-      loadScenario(c.scenarios[0]);
+            const saved = loadLocal(DEVICES);                                 // autosave from the last visit?
+      if (saved) { applyProject(saved, c.scenarios); setProjectName(saved.name); } else loadScenario(c.scenarios[0]);
     }).catch(() => setOnline(false));
   }, []);
 
@@ -105,6 +109,32 @@ export default function App() {
     setCode(s.code); setSerial([]); setError(""); setRunning(false); needReset.current = true;
     setPowered(false); sketchRef.current = null;   // a freshly loaded scenario starts "unplugged"
     setSelWire(null); setSelected(null); needFit.current = true;   // re-centre the view for the new circuit
+  };
+    /** Put a validated project (from a file or from autosave) on the canvas. */
+  const applyProject = (p, scenarios = []) => {
+    setScenarioId(scenarios.some((s) => s.id === p.scenarioId) ? p.scenarioId : ""); setOutputs({});
+    setDevices(p.devices); setWires(p.wires); setCode(p.code); setSim(p.sim);
+    setSerial([]); setError(""); setRunning(false); needReset.current = true;
+    setPowered(false); sketchRef.current = null; setSelWire(null); setSelected(null); setMenu(false); needFit.current = true;
+  };
+  /** SAVE: download the project as a .tanzsim.json file. */
+  const saveFile = () => {
+    const name = (window.prompt("Project name:", projectName) ?? "").trim();
+    if (!name) return;
+    setProjectName(name);
+    downloadProject(serializeProject({ name, scenarioId, devices, wires, code, sim }), name);
+    setSerial((s) => [...s, `[SAVE] Project "${name}" downloaded.`]);
+  };
+  /** OPEN: read a .tanzsim.json file chosen by the user. */
+  const onOpenFile = async (e) => {
+    const f = e.target.files?.[0]; e.target.value = "";             // reset so the same file can be opened twice
+    if (!f) return;
+    if (f.size > 2000000) return window.alert("This file is too large to be a TanzSim project.");
+    const r = parseProject(await f.text(), DEVICES);
+    if (!r.ok) return window.alert("Cannot open this file:\n" + r.error);
+    if (!window.confirm(`Open "${r.project.name}"?\nYour current circuit and code will be replaced.`)) return;
+    applyProject(r.project, cfg.scenarios); setProjectName(r.project.name);
+    setSerial([`[OPEN] Project "${r.project.name}" loaded.` + (r.dropped ? ` ${r.dropped} wire(s) skipped (unknown pins).` : "")]);
   };
 
   /** NEW PROJECT: empty canvas with only the Arduino, no wires, a minimal sketch. Student builds everything from scratch. */
@@ -121,6 +151,14 @@ export default function App() {
   const bindings = useMemo(() => resolveBindings(devices, wires, DEVICES, pinNumber), [devices, wires]);
 
   latest.current = { code, sim, bindings };
+  
+  // ---- AUTOSAVE: remember the project in this browser (0.6 s after the last change) ----
+  // `sim` is read from `latest` on purpose: it changes every tick and must not trigger a save each second.
+  useEffect(() => {
+    if (!cfg || !devices.length) return;
+    const t = setTimeout(() => saveLocal(serializeProject({ name: projectName, scenarioId, devices, wires, code, sim: latest.current.sim })), 600);
+    return () => clearTimeout(t);
+  }, [cfg, devices, wires, code, scenarioId, projectName]);
 
   // ---- ONE SIMULATION TICK: backend runs loop() + physics ----
   const tick = useCallback(async () => {
@@ -282,7 +320,11 @@ export default function App() {
       <header>
               <img className="logo" src="/sua-logo.png" alt="SUA logo" onError={(e) => (e.currentTarget.style.display = "none")} /><h1>{inst.name}</h1><small>{inst.lab}</small>
         <span className="sp" />
-        <button onClick={newProject} title="Start from scratch"><FilePlus size={16} />New project</button>
+        <button onClick={() => fileRef.current?.click()} title="Open a saved project (.json)"><FolderOpen size={16} />Open</button>
+        <button onClick={saveFile} title="Download this project as a file"><Download size={16} />Save</button>
+        <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={onOpenFile} />
+        <select aria-label="Scenario" value={scenarioId}
+          onChange={(e) => { if (scenarioId === "" && !window.confirm("Replace your project with this example?\nTip: press Save first to keep your work.")) return; loadScenario(cfg.scenarios.find((s) => s.id === e.target.value)); }}>
         <select aria-label="Scenario" value={scenarioId} onChange={(e) => loadScenario(cfg.scenarios.find((s) => s.id === e.target.value))}>
           <option value="" disabled hidden>My project</option>
           {cfg.scenarios.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
