@@ -64,3 +64,27 @@ textarea.code { width:100%; height:340px; border:0; padding:10px; font:13px/1.5 
 .map { font:12px Consolas, monospace; padding:4px 12px 10px; color:#2f5a38; }
 @media (pointer: coarse) { button, select { min-height:44px; } .toolbar small { flex-basis:100%; } }   /* finger-sized controls */
 @media (max-width: 900px) { .col-circuit { order:-1; } }   /* on phones the circuit comes before the code editor */
+
+/* ---- Phones: shorter canvas so there is page around it, plus the side scroll rail and bottom jump bar ---- */
+@media (max-width: 900px) { .stage { height:62vh; min-height:340px; } section[id] { scroll-margin-top:8px; } }
+.scroll-rail, .jumpbar { display:none; }
+@media (max-width: 900px), (pointer: coarse) {
+  header { padding-right:40px; }
+  main { padding:12px 40px 76px 12px; }   /* right gutter = the scroll rail, bottom space = the jump bar */
+  .scroll-rail { display:block; position:fixed; right:0; top:0; bottom:calc(59px + env(safe-area-inset-bottom)); width:32px; z-index:30; touch-action:none; user-select:none; -webkit-user-select:none; background:linear-gradient(90deg, transparent, rgba(1,146,18,.12)); }
+  .scroll-thumb { position:absolute; left:3px; right:3px; top:0; border-radius:14px; background:var(--green); box-shadow:0 2px 8px #0005; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }
+  .scroll-thumb i { display:block; width:14px; height:2px; border-radius:2px; background:#fff; opacity:.9; }
+  .jumpbar { display:grid; grid-template-columns:repeat(4, 1fr); position:fixed; left:0; right:0; bottom:0; z-index:30; background:#fff; border-top:3px solid var(--gold); padding-bottom:env(safe-area-inset-bottom); box-shadow:0 -2px 10px #0002; }
+  .jumpbar button { flex-direction:column; justify-content:center; gap:2px; border:0; border-radius:0; background:transparent; padding:6px 4px; min-height:56px; font-size:12px; font-weight:600; color:var(--green-deep); }
+  .jumpbar button:active { background:var(--green-soft); }
+}
+
+/* ---- Compact header on phones: it used to fill half the first screen and push the circuit out of sight ---- */
+.status { display:inline-flex; align-items:center; gap:6px; }
+.dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:#ff8a80; box-shadow:0 0 0 2px #fff6; } .dot.on { background:#8dff8a; }
+@media (max-width: 900px) {
+  header { gap:6px 8px; padding:8px 40px 8px 10px; }
+  header h1 { font-size:18px; }
+  header .lab, header .lbl, header .sp { display:none; }     /* long lab name and button texts hidden: icons stay, aria-labels keep them readable by screen readers */
+  header select { order:3; flex:1 1 100%; min-width:0; }      /* scenario picker gets its own full-width row */
+}
