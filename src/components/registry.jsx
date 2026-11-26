@@ -414,6 +414,7 @@ export const DEVICES = {
   pump: mk("Water Pump / Valve", 90, 90, ["SIG", "GND"], 90, "pump", "SIG", PumpArt),
   fan: mk("Greenhouse Fan", 90, 90, ["SIG", "GND"], 90, "fan", "SIG", FanArt),
   led: { label: "LED", w: 40, h: 50, role: "led", sig: "ANODE", pins: LED_PINS, Art: (p) => <LedArt pins={LED_PINS} {...p} /> },
+  ultra: { label: "Ultrasonic Sensor (HC-SR04)", w: 216, h: 96, role: "ultra_echo", sig: "ECHO", extra: { ultra_trig: "TRIG" }, pins: US_PINS, Art: UltrasonicArt },   // extra: more signal pins the simulator needs
   button: mk("Push Button", 50, 50, ["SIG", "GND"], 50, "button", "SIG", ButtonArt),
 };
 
