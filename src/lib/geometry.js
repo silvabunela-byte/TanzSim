@@ -75,13 +75,17 @@ export function resolveBindings(devices, wires, DEV, toPin) {
   for (const d of devices) for (const g of DEV[d.type].links ?? []) for (let i = 1; i < g.length; i++) join(key(d.id, g[0]), key(d.id, g[i]));   // 2) internal links
   const unos = devices.filter((d) => d.type === "arduino");
   const out = {};
-  for (const d of devices) {
+   for (const d of devices) {
     const def = DEV[d.type];
-    if (!def.role || out[def.role] !== undefined) continue;          // first device of a role wins
-    const root = find(key(d.id, def.sig));                           // the net of this device's signal pin
-    search: for (const u of unos) for (const p of DEV.arduino.pins) {
-      const n = toPin(p.id);                                         // only digital/analog pins count
-      if (n !== null && find(key(u.id, p.id)) === root) { out[def.role] = n; break search; }
+    if (!def.role) continue;
+    // A part can report several pins: its main `sig` pin plus optional `extra` pins, e.g. HC-SR04 = ECHO + TRIG.
+    for (const [role, sig] of [[def.role, def.sig], ...Object.entries(def.extra ?? {})]) {
+      if (out[role] !== undefined) continue;                         // first device of a role wins
+      const root = find(key(d.id, sig));                             // the net of this signal pin
+      search: for (const u of unos) for (const p of DEV.arduino.pins) {
+        const n = toPin(p.id);                                       // only digital/analog pins count
+        if (n !== null && find(key(u.id, p.id)) === root) { out[role] = n; break search; }
+      }
     }
   }
   return out;
