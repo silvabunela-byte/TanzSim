@@ -180,6 +180,7 @@ class Runtime:
         self.vars, self.outputs, self.modes, self.in_fn = {}, {}, {}, False
         self.io = {"digital": {}, "analog": {}}
         self.serial, self.buf, self.steps, self.local = [], "", 0, {}
+        self.high_seen = set()   # pins driven HIGH during the current loop()/setup() run (pulseIn needs the TRIG pulse)
         for d in self.globals_ast: self.exec(d)   # initialise globals once
 
     def run(self, fn, io):
