@@ -347,6 +347,55 @@ function BreadboardArt() {
   );
 }
 
+// ---- HC-SR04 ultrasonic distance sensor --------------------------------------------------------
+// Front view, drawn at the same scale as the Arduino (about 4.8 units per mm): blue PCB, two silver
+// transducer cans (left = transmitter "T", right = receiver "R"), crystal, two ICs and the 4-pin header.
+// Pin order on the real board: VCC, TRIG, ECHO, GND (pitch 11 units here so the header fits between the cans).
+// The simulator reads TRIG and ECHO through `extra` (see DEVICES.ultra): both must be wired to Arduino pins.
+const US_PINS = [["VCC", "VCC (5 V)"], ["TRIG", "TRIG (trigger input)"], ["ECHO", "ECHO (pulse output)"], ["GND", "GND"]]
+  .map(([id, name], i) => ({ id, label: id, name, dx: 91.5 + i * 11, dy: 89 }));
+
+function UltrasonicArt() {
+  /** One metal transducer can: shiny rim, dark mesh with rings, tiny centre dot. */
+  const Can = ({ cx }) => (
+    <g>
+      <circle cx={cx} cy="44" r="36" fill="#0d1013" opacity="0.35" />
+      <circle cx={cx} cy="44" r="34" fill="url(#usRim)" stroke="#59626a" strokeWidth="1" />
+      <circle cx={cx} cy="44" r="28" fill="#2a2f34" stroke="#9aa3aa" strokeWidth="1.2" />
+      <circle cx={cx} cy="44" r="24" fill="url(#usMesh)" />
+      {[7, 12, 17, 21].map((r) => <circle key={r} cx={cx} cy="44" r={r} fill="none" stroke="#050607" strokeWidth="0.8" opacity="0.65" />)}
+      <circle cx={cx} cy="44" r="3" fill="#040506" />
+      <ellipse cx={cx - 11} cy="31" rx="9" ry="4.5" fill="#fff" opacity="0.14" transform={`rotate(-30 ${cx - 11} 31)`} />
+    </g>
+  );
+  return (
+    <g>
+      <defs>
+        <linearGradient id="usPcb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#1f6fc2" /><stop offset="1" stopColor="#0f4a94" /></linearGradient>
+        <radialGradient id="usRim" cx="0.4" cy="0.35" r="0.85"><stop offset="0" stopColor="#f7f9fa" /><stop offset="0.6" stopColor="#b3bcc3" /><stop offset="1" stopColor="#7a848c" /></radialGradient>
+        <radialGradient id="usMesh" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stopColor="#4a5158" /><stop offset="1" stopColor="#0f1214" /></radialGradient>
+      </defs>
+      <ellipse cx="110" cy="94" rx="100" ry="3" fill="#000" opacity="0.14" />
+      <rect width="216" height="96" rx="5" fill="url(#usPcb)" stroke="#0a2f63" strokeWidth="1.2" />
+      <Can cx={52} /><Can cx={164} />
+      <text x="108" y="15" fontSize="10" fontWeight="700" fill="#fff" textAnchor="middle" fontFamily="Arial, sans-serif">HC-SR04</text>
+      <text x="108" y="22" fontSize="4.6" fill="#cfe3ff" textAnchor="middle" fontFamily="Arial, sans-serif">ULTRASONIC MODULE</text>
+      <text x="9" y="11" fontSize="7" fontWeight="700" fill="#fff" fontFamily="Arial, sans-serif">T</text>
+      <text x="203" y="11" fontSize="7" fontWeight="700" fill="#fff" fontFamily="Arial, sans-serif">R</text>
+      <rect x="98" y="28" width="20" height="8" rx="4" fill="url(#usRim)" stroke="#59626a" strokeWidth="0.6" />
+      <rect x="92" y="42" width="14" height="9" rx="1" fill="#14171a" /><rect x="110" y="42" width="14" height="9" rx="1" fill="#14171a" />
+      {[[91, 55], [101, 55], [111, 55], [121, 55]].map(([x, y]) => <rect key={x} x={x} y={y} width="6" height="3" fill="#c9ad6a" />)}
+      <rect x="84" y="82" width="50" height="14" rx="2" fill="url(#pBlack)" stroke="#000" />
+      {US_PINS.map((p) => (
+        <g key={p.id}>
+          <Dot p={p} />
+          <text transform={`translate(${p.dx + 2} 78) rotate(-90)`} fontSize="5.5" fontWeight="700" fill="#fff" fontFamily="Arial, sans-serif">{p.label}</text>
+        </g>
+      ))}
+    </g>
+  );
+}
+
 const mk = (label, w, h, ids, py, role, sig, Art) => {
   const pins = bottomPins(ids, w, py);
   return { label, w, h, pins, role, sig, Art: (props) => <Art pins={pins} {...props} /> };
